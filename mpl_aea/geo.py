@@ -31,7 +31,7 @@ class GeoAxes(Axes):
             self._round_to = round_to
 
         def __call__(self, x, pos=None):
-            degrees = (x / np.pi) * 180.0
+            degrees = x 
             degrees = np.round(degrees / self._round_to) * self._round_to
             if rcParams['text.usetex'] and not rcParams['text.latex.unicode']:
                 return r"$%0.0f^\circ$" % degrees
@@ -64,10 +64,8 @@ class GeoAxes(Axes):
 
         self.grid(rcParams['axes.grid'])
 
-        #Axes.set_xlim(self, -np.pi, np.pi)
         Axes.set_xlim(self, 0, 360)
         Axes.set_ylim(self,  -90, 90)
-       # Axes.set_ylim(self, -np.pi / 2.0, np.pi / 2.0)
 
     def _set_lim_and_transforms(self):
         # A (possibly non-linear) projection on the (already scaled) data
@@ -125,7 +123,7 @@ class GeoAxes(Axes):
         xscale, _ = transform.transform_point((360, 0))
         _, yscale = transform.transform_point((0, 90))
         return Affine2D() \
-            .scale(1 / xscale, 0.5 / yscale) \
+            .scale(0.5 / xscale, 0.5 / yscale) \
             .translate(0.5, 0.5)
 
     def get_xaxis_transform(self,which='grid'):
@@ -273,8 +271,8 @@ class AitoffAxes(GeoAxes):
             self._resolution = resolution
 
         def transform_non_affine(self, ll):
-            longitude = np.radian(ll[:, 0:1])
-            latitude  = np.radian(ll[:, 1:2])
+            longitude = np.radians(ll[:, 0:1]-180)
+            latitude  = np.radians(ll[:, 1:2])
 
             # Pre-compute some values
             half_long = longitude / 2.0
@@ -316,7 +314,7 @@ class AitoffAxes(GeoAxes):
             # MGDTODO: Math is hard ;(
             raise RuntimeError("invertedaitoff is not implemented")
             return xy
-        transform_non_affine.__doc__ = Transform.transform_non_affini.__doc__
+        transform_non_affine.__doc__ = Transform.transform_non_affine.__doc__
 
         def inverted(self):
             return AitoffAxes.AitoffTransform(self._resolution)
@@ -353,8 +351,8 @@ class HammerAxes(GeoAxes):
             self._resolution = resolution
 
         def transform_non_affine(self, ll):
-            longitude = np.radian(ll[:, 0:1])
-            latitude  = np.radian(ll[:, 1:2])
+            longitude = np.radians(ll[:, 0:1]-180)
+            latitude  = np.radians(ll[:, 1:2])
 
             # Pre-compute some values
             half_long = longitude / 2.0
@@ -395,7 +393,7 @@ class HammerAxes(GeoAxes):
             z = np.sqrt(1.0 - quarter_x*quarter_x - half_y*half_y)
             longitude = 2 * np.arctan((z*x) / (2.0 * (2.0*z*z - 1.0)))
             latitude = np.arcsin(y*z)
-            return np.degrees(np.concatenate((longitude, latitude), 1))
+            return np.degrees(np.concatenate((longitude+np.pi, latitude), 1))
         transform_non_affine.__doc__ = Transform.transform_non_affine.__doc__
 
         def inverted(self):
@@ -437,8 +435,8 @@ class MollweideAxes(GeoAxes):
                 delta = -(theta + np.sin(theta) - pi_sin_l) / (1 + np.cos(theta))
                 return delta, np.abs(delta) > 0.001
 
-            longitude = np.radian(ll[:, 0])
-            latitude  = np.radian(ll[:, 1])
+            longitude = np.radians(ll[:, 0] - 180)
+            latitude  = np.radians(ll[:, 1])
 
             clat = np.pi/2 - np.abs(latitude)
             ihigh = clat < 0.087 # within 5 degrees of the poles
@@ -495,7 +493,7 @@ class MollweideAxes(GeoAxes):
             lon = (np.pi / (2 * np.sqrt(2))) * x / np.cos(theta)
             lat = np.arcsin((2 * theta + np.sin(2 * theta)) / np.pi)
 
-            return np.degrees(np.concatenate((lon, lat), 1))
+            return np.degrees(np.concatenate((lon+np.pi, lat), 1))
         transform_non_affine.__doc__ = Transform.transform_non_affine.__doc__
 
         def inverted(self):
@@ -535,8 +533,8 @@ class LambertAxes(GeoAxes):
             self._center_latitude = center_latitude
 
         def transform_non_affine(self, ll):
-            longitude = np.radian(ll[:, 0:1])
-            latitude  = np.radian(ll[:, 1:2])
+            longitude = np.radians(ll[:, 0:1]-180)
+            latitude  = np.radians(ll[:, 1:2])
             clong = self._center_longitude
             clat = self._center_latitude
             cos_lat = np.cos(latitude)
@@ -597,7 +595,7 @@ class LambertAxes(GeoAxes):
             lon = clong + np.arctan(
                 (x*sin_c) / (p*np.cos(clat)*cos_c - y*np.sin(clat)*sin_c))
 
-            return np.degrees(np.concatenate((lon, lat), 1))
+            return np.degrees(np.concatenate((lon+np.pi, lat), 1))
         transform_non_affine.__doc__ = Transform.transform_non_affine.__doc__
 
         def inverted(self):
