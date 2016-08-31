@@ -1,6 +1,6 @@
 import mpl_aea
 
-def test():
+def test_aea():
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_agg import FigureCanvasAgg
 
@@ -45,4 +45,34 @@ def test():
     ax.set_parallel_grid(30)
     ax.grid()
     canvas = FigureCanvasAgg(fig)
-    fig.savefig('xxx.png')
+    fig.savefig('xxx-aea.png')
+
+def test_moll():
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+    # Now make a simple example using the custom projection.
+
+    import numpy as np
+
+    fig = Figure(figsize=(6, 6))
+
+#    ra = np.random.uniform(size=100, low=0, high=360)
+#    dec = np.random.uniform(size=100, low=-90, high=90)
+    ra = np.linspace(0, 360, 100)
+    dec = np.linspace(-90, 90, 100)
+
+    ra = np.random.uniform(size=1000, low=30, high=60)
+    dec = np.random.uniform(size=1000, low=-50, high=50)
+
+    ax = fig.add_subplot(111, projection="mollweide2")
+    ax.plot(np.radians(dec), np.radians(ra), '*')
+    ax.axhline(np.radians(-20))
+    ax.axvline(np.radians(140))
+
+    ra = np.random.uniform(size=1000, low=180, high=200)
+    dec = np.random.uniform(size=1000, low=-50, high=50)
+
+    ax.grid()
+    canvas = FigureCanvasAgg(fig)
+    fig.savefig('xxx-moll.png')
