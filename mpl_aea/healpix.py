@@ -217,3 +217,34 @@ def vertices(nside, pix):
 
     theta, phi = xy2ang(x, y)
     return theta, phi
+
+def histogrammap(ra, dec, weights=None, nside=32, perarea=False, range=None):
+    if range is not None:
+        (ra1, ra2), (dec1, dec2) = range
+        m  = (ra >= ra1)& (ra <= ra2)
+        m &= (dec >= dec1)& (dec <= dec2)
+        ra = ra[m]
+        dec = dec[m]
+        if weights is not None:
+            weights = weights[m]
+
+    ipix = ang2pix(nside, numpy.radians(90-dec), numpy.radians(ra))
+    npix = nside2npix(nside)
+    if perarea:
+        npix = nside2npix(nside)
+        sky = 360. ** 2 / numpy.pi
+        area = 1. * (sky / npix)
+    else:
+        area = 1
+
+    if weights is not None:
+        w = numpy.bincount(ipix, weights=weights, minlength=npix)
+        N = numpy.bincount(ipix, minlength=npix)
+        w = w / area
+        N = N / area
+        return w, N
+    else:
+        w = 1.0 * numpy.bincount(ipix, minlength=npix)
+        return w / area
+
+

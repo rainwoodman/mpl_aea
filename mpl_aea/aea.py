@@ -35,10 +35,8 @@ from __future__ import unicode_literals
 
 import matplotlib
 from matplotlib.axes import Axes
-from matplotlib.patches import Rectangle, Polygon
+from matplotlib.patches import Polygon
 from matplotlib.path import Path
-from matplotlib.collections import PolyCollection, TriMesh
-from matplotlib.tri.triangulation import Triangulation
 
 from matplotlib.ticker import NullLocator, Formatter, FixedLocator, MaxNLocator
 from matplotlib.transforms import Affine2D, BboxTransformTo, Transform, blended_transform_factory, Bbox
@@ -47,7 +45,7 @@ import matplotlib.axis as maxis
 
 import numpy as np
 from . import healpix
-
+from . collections import HealpixQuadCollection, HealpixTriCollection
 __author__ = "Yu Feng"
 __email__ =  "rainwoodman@gmail.com"
 
@@ -438,7 +436,7 @@ class SkymapperAxes(Axes):
         self._update_affine()
 
     def _histmap(self, show, ra, dec, weights=None, nside=32, perarea=False, mean=False, range=None, **kwargs):
-        r = histogrammap(ra, dec, weights, nside, perarea=perarea, range=range)
+        r = healpix.histogrammap(ra, dec, weights, nside, perarea=perarea, range=range)
 
         if weights is not None:
             w, N = r
@@ -469,7 +467,7 @@ class SkymapperAxes(Axes):
             mask = map == map
 
         if shading == 'flat':
-            coll = HealpixCollection(map, mask, 
+            coll = HealpixQuadCollection(map, mask, 
                     transform=self.transData, **defaults)
         else:
             coll = HealpixTriCollection(map, mask, transform=self.transData, **defaults)
@@ -771,224 +769,5 @@ class AlbersEqualAreaAxes(SkymapperAxes):
             return self.inverted
 
         inverted.__doc__ = Transform.inverted.__doc__
-
-class HealpixCollection(PolyCollection):
-    def __init__(self, map, mask, nest=False, **kwargs):
-        nside = healpix.npix2nside(len(mask))
-        self.v = pix2quad(nside, mask.nonzero()[0], nest)
-        PolyCollection.__init__(self, self.v, array=map[mask], **kwargs)
-
-    def get_datalim(self, transData):
-        """ The data lim of a healpix collection.
-        """ 
-        # FIXME: it is currently set to the full sky.
-        #    This could have been trimmed down. 
-        #    We want to set xlim smartly such that the largest
-        #    empty region is chopped off. I think it is possible, by
-        #    doing a histogram in ra, for example. 
-        vmin = (0, -90)
-        vmax = (360, 90)
-        return Bbox((vmin, vmax))
-
-import matplotlib.transforms as mtransforms
-import warnings
-import numpy as np
-import numpy.ma as ma
-import matplotlib as mpl
-import matplotlib.cbook as cbook
-import matplotlib.colors as mcolors
-import matplotlib.cm as cm
-from matplotlib import docstring
-import matplotlib.transforms as transforms
-import matplotlib.artist as artist
-from matplotlib.artist import allow_rasterization
-import matplotlib.backend_bases as backend_bases
-import matplotlib.path as mpath
-from matplotlib import _path
-import matplotlib.mlab as mlab
-import matplotlib.lines as mlines
-from matplotlib.collections import Collection
-
-class HealpixTriCollection(Collection):
-    """
-    Class for the efficient drawing of a triangular mesh using
-    Gouraud shading.
-
-    A triangular mesh is a :class:`~matplotlib.tri.Triangulation`
-    object.
-    """
-    def __init__(self, map, mask, nest=False, **kwargs):
-        Collection.__init__(self, **kwargs)
-        nside = healpix.npix2nside(len(map))
-        # remove the first axes
-        verts = pix2tri(nside, mask.nonzero()[0]).reshape(-1, 3, 2)
-        c = np.ones((verts.shape[0], verts.shape[1])) * np.repeat(map[mask][:, None], 2, axis=0)
-
-        self._verts = verts
-        self._shading = 'gouraud'
-        self._is_filled = True
-        self.set_array(c.reshape(-1))
-        
-    def get_paths(self):
-        if self._paths is None:
-            self.set_paths()
-        return self._paths
-
-    def set_paths(self):
-        self._paths = self.convert_mesh_to_paths(self._verts)
-
-    @staticmethod
-    def convert_mesh_to_paths(verts):
-        """
-        Converts a given mesh into a sequence of
-        :class:`matplotlib.path.Path` objects for easier rendering by
-        backends that do not directly support meshes.
-
-        This function is primarily of use to backend implementers.
-        """
-        Path = mpath.Path
-        return [Path(x) for x in verts]
-
-    @allow_rasterization
-    def draw(self, renderer):
-        if not self.get_visible():
-            return
-        renderer.open_group(self.__class__.__name__)
-        transform = self.get_transform()
-
-        # Get a list of triangles and the color at each vertex.
-        
-        verts = self._verts
-        
-        self.update_scalarmappable()
-        colors = self._facecolors.reshape(-1, 3, 4)
-        
-        oldshape = list(verts.shape)
-        
-        verts = transform.transform(verts.reshape(-1, 2)).reshape(oldshape)
-
-        gc = renderer.new_gc()
-        self._set_gc_clip(gc)
-        gc.set_linewidth(self.get_linewidth()[0])
-        renderer.draw_gouraud_triangles(gc, verts, colors, mtransforms.IdentityTransform())
-        gc.restore()
-        renderer.close_group(self.__class__.__name__)
-
-    def get_datalim(self, transData):
-        """ The data lim of a healpix collection.
-        """ 
-        # FIXME: it is currently set to the full sky.
-        #    This could have been trimmed down. 
-        #    We want to set xlim smartly such that the largest
-        #    empty region is chopped off. I think it is possible, by
-        #    doing a histogram in ra, for example. 
-        vmin = (0, -90)
-        vmax = (360, 90)
-        return Bbox((vmin, vmax))
-
-
-def _wrap360(phi, dir='left'):
-    phi[np.abs(phi) < 1e-9] = 0
-    if dir == 'left':
-        ref = phi.min(axis=-1)
-    else:
-        ref = phi.max(axis=-1)
-#    print('ref', ref, phi, ref % 360 - ref)
-    diff = (ref % 360) - ref 
-    phi = phi + diff[:, None]
-    
-    #diff = phi - ref[:, None] 
-    #print('great', (diff > 180).sum())
-    #diff[diff > 180] -= 360 
-    #print('less', (diff < -180).sum())
-    #diff[diff < -180] += 360
-    #phi = ref[:, None] + diff
-    return phi 
-
-# a few helper functions talking to healpy/healpix.
-def pix2quad(nside, pix, nest=False):
-    """Generate healpix quad vertices for pixels where mask is True
-
-    Args:
-        pix: list of pixel numbers
-        nest: nested or not
-        nside: HealPix nside
-
-    Returns:
-        vertices
-        vertices: (N,4,2), RA/Dec coordinates of 4 boundary points of cell
-    """
-
-    pix = np.asarray(pix)
-    vertices = np.zeros((pix.size, 4, 2))
-
-    theta, phi = healpix.vertices(nside, pix)
-    theta = np.degrees(theta)
-    phi = np.degrees(phi)
-
-    vertices[:, :, 0] = phi
-    vertices[:, :, 1] = 90.0 - theta
-
-    # ensure objects are in the same image plane.
-    vertices[:, :, 0] = _wrap360(phi, 'right')
-
-    return vertices
-
-def pix2tri(nside, pix, nest=False):
-    """Generate healpix quad vertices for pixels where mask is True
-
-    Args:
-        pix: list of pixel numbers
-        nest: nested or not
-        nside: HealPix nside
-
-    Returns:
-        vertices
-        vertices: (N,3,2,2), RA/Dec coordinates of 3 boundary points of 2 triangles
-    """
-
-    # each pixel contains 2 triangles.
-    pix = np.asarray(pix)
-    vertices = np.zeros((pix.size, 2, 3, 2))
-
-    theta, phi = healpix.vertices(nside, pix)
-    theta = np.degrees(theta)
-    phi = np.degrees(phi)
-
-    vertices[:, 0, :, 0] = _wrap360(phi[:, [0, 1, 3]], 'left')
-    vertices[:, 0, :, 1] = 90.0 - theta[:, [0, 1, 3]]
-    vertices[:, 1, :, 0] = _wrap360(phi[:, [1, 2, 3]], 'right')
-    vertices[:, 1, :, 1] = 90.0 - theta[:, [1, 2, 3]]
-
-    return vertices
-
-def histogrammap(ra, dec, weights=None, nside=32, perarea=False, range=None):
-    if range is not None:
-        (ra1, ra2), (dec1, dec2) = range
-        m  = (ra >= ra1)& (ra <= ra2)
-        m &= (dec >= dec1)& (dec <= dec2)
-        ra = ra[m]
-        dec = dec[m]
-        if weights is not None:
-            weights = weights[m]
-
-    ipix = healpix.ang2pix(nside, np.radians(90-dec), np.radians(ra))
-    npix = healpix.nside2npix(nside)
-    if perarea:
-        npix = healpix.nside2npix(nside)
-        sky = 360. ** 2 / np.pi
-        area = 1. * (sky / npix)
-    else:
-        area = 1
-
-    if weights is not None:
-        w = np.bincount(ipix, weights=weights, minlength=npix)
-        N = np.bincount(ipix, minlength=npix)
-        w = w / area
-        N = N / area
-        return w, N
-    else:
-        w = 1.0 * np.bincount(ipix, minlength=npix)
-        return w / area
 
 
