@@ -65,7 +65,7 @@ def test_moll():
     ra = np.random.uniform(size=1000, low=30, high=60)
     dec = np.random.uniform(size=1000, low=-50, high=50)
 
-    ax = fig.add_subplot(111, projection="mollweide2")
+    ax = fig.add_subplot(111, projection="ast.mollweide")
     ax.plot(ra, dec, '*')
     ax.axhline(-20)
     ax.axvline(140)

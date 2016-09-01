@@ -411,7 +411,7 @@ class HammerAxes(GeoAxes):
 
 
 class MollweideAxes(GeoAxes):
-    name = 'mollweide2'
+    name = 'ast.mollweide'
 
     class MollweideTransform(Transform):
         """
