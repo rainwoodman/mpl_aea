@@ -18,6 +18,9 @@ from matplotlib.ticker import Formatter, Locator, NullLocator, FixedLocator, Nul
 from matplotlib.transforms import Affine2D, Affine2DBase, Bbox, \
     BboxTransformTo, IdentityTransform, Transform, TransformWrapper
 
+from .collections import HealpixQuadCollection, HealpixTriCollection
+from . import healpix
+
 class GeoAxes(Axes):
     """
     An abstract base class for geographic projections
@@ -248,6 +251,62 @@ class GeoAxes(Axes):
 
     def drag_pan(self, button, key, x, y):
         pass
+
+    def _histmap(self, show, ra, dec, weights=None, nside=32, perarea=False, mean=False, range=None, **kwargs):
+        r = healpix.histogrammap(ra, dec, weights, nside, perarea=perarea, range=range)
+
+        if weights is not None:
+            w, N = r
+        else:
+            w = r
+        if mean:
+            mask = N != 0
+            w[mask] /= N[mask]
+        else:
+            mask = w > 0
+        return w, mask, show(w, mask, nest=False, **kwargs)
+
+    def histmap(self, ra, dec, weights=None, nside=32, perarea=False, mean=False, range=None, **kwargs):
+        return self._histmap(self.mapshow, ra, dec, weights, nside, perarea, mean, range, **kwargs)
+
+    def histcontour(self, ra, dec, weights=None, nside=32, perarea=False, mean=False, range=None, **kwargs):
+        return self._histmap(self.mapcontour, ra, dec, weights, nside, perarea, mean, range, **kwargs)
+
+    def mapshow(self, map, mask=None, nest=False, shading='flat', **kwargs):
+        """ Display a healpix map """
+        vmin = kwargs.pop('vmin', None)
+        vmax = kwargs.pop('vmax', None)
+        defaults = dict(rasterized=True,
+                    alpha=1.0,
+                    linewidth=0)
+        defaults.update(kwargs)
+        if mask is None:
+            mask = map == map
+
+        if shading == 'flat':
+            coll = HealpixQuadCollection(map, mask, 
+                    transform=self.transData, **defaults)
+        else:
+            coll = HealpixTriCollection(map, mask, transform=self.transData, **defaults)
+        
+        coll.set_clim(vmin=vmin, vmax=vmax)
+        self.add_collection(coll)
+        self._sci(coll)
+        self.autoscale_view(tight=True)
+
+        return coll
+
+    def mapcontour(self, map, mask=None, nest=False, **kwargs):
+        """ Display a healpix map as coutours. This is approximate. """
+        if mask is None:
+            mask = map == map
+
+        ra, dec = healpix.pix2radec(healpix.npix2nside(len(map)), mask.nonzero()[0])
+        im = self.tricontour(ra, dec, map[mask], **kwargs)
+        self._sci(im)
+        self.autoscale_view(tight=True)
+        return im
+
 
 
 class AitoffAxes(GeoAxes):

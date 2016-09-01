@@ -70,8 +70,9 @@ def test_moll():
     ax.axhline(-20)
     ax.axvline(140)
 
-    ra = np.random.uniform(size=1000, low=180, high=200)
+    ra = np.random.uniform(size=1000, low=60, high=90)
     dec = np.random.uniform(size=1000, low=-50, high=50)
+    ax.histmap(ra, dec)
 
     ax.grid()
     canvas = FigureCanvasAgg(fig)
