@@ -64,7 +64,7 @@ def test_moll():
 
     ra = np.random.uniform(size=10000, low=0, high=360)
     dec = np.random.uniform(size=10000, low=-90, high=90)
-    ax.histmap(ra, dec, nside=2, shading='flat')
+    ax.mapshow(np.arange(48), shading='flat')
 
     ra = np.random.uniform(size=1000, low=30, high=60)
     dec = np.random.uniform(size=1000, low=-50, high=50)

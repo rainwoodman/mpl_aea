@@ -26,8 +26,9 @@ from . import healpix
 class HealpixQuadCollection(PolyCollection):
     def __init__(self, map, mask, nest=False, **kwargs):
         nside = healpix.npix2nside(len(mask))
-        self.v = pix2quad(nside, mask.nonzero()[0], nest)
-        PolyCollection.__init__(self, self.v, array=map[mask], **kwargs)
+        self.v, ind = pix2quad(nside, mask.nonzero()[0], nest)
+        #print(len(ind), len(self.v), mask.sum())
+        PolyCollection.__init__(self, self.v, array=map[ind], **kwargs)
 
     def get_datalim(self, transData):
         """ The data lim of a healpix collection.
@@ -134,21 +135,33 @@ def pix2quad(nside, pix, nest=False):
     """
 
     pix = np.asarray(pix)
-    vertices = np.zeros((pix.size, 4, 2))
-
     theta, phi = healpix.vertices(nside, pix)
-    theta = np.degrees(theta)
-    phi = np.degrees(phi)
-
-    vertices[:, :, 0] = phi
-    vertices[:, :, 1] = 90.0 - theta
+    theta = np.round(np.degrees(theta), 5)
+    phi = np.round(np.degrees(phi), 5)
+    #print 'here', _wrap360(np.array([[ -22.5  , 0. ,  22.5  , 0. ]]), 'right')
+    #print 'here', _wrap360(_wrap360(np.array([[ -22.5  , 0. ,  22.5  , 0. ]]), 'right'), 'left')
 
     # ensure objects are in the same image plane.
-    vertices[:, :, 0] = _wrap360(phi, 'right')
+    wright = _wrap360(phi, 'right')
+    wleft = _wrap360(phi, 'left')
+    mask = (wright != wleft).any(axis=-1)
 
-    return vertices
+    vertices = np.zeros((len(pix) - mask.sum(), 4, 2))
+
+    vertices[:, :, 0] = wright[~mask]
+    vertices[:, :, 1] = 90.0 - theta[~mask]
+    verticesl = np.zeros((mask.sum(), 4, 2))
+    verticesr = np.zeros((mask.sum(), 4, 2))
+    verticesl[:, :, 1] = 90.0 - theta[mask]
+    verticesr[:, :, 1] = 90.0 - theta[mask]
+    verticesl[:, :, 0] = wleft[mask]
+    verticesr[:, :, 0] = wright[mask]
+
+    return np.concatenate([vertices, verticesl, verticesr], axis=0), np.concatenate([pix[~mask], pix[mask], pix[mask]], axis=0)
+
 
 def _wrap360(phi, dir='left'):
+    phi = phi.copy() # make a copy
     phi[np.abs(phi) < 1e-9] = 0
     if dir == 'left':
         ref = phi.min(axis=-1)

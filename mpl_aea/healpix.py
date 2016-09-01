@@ -180,7 +180,10 @@ def xy2ang(x, y):
     def polarcaps(x, y):
         ya = numpy.abs(y)
         xt = x % (0.5 * numpy.pi)
-        phi = x - (ya - numpy.pi * 0.25) / (ya - numpy.pi * 0.5) * (xt - 0.25 * numpy.pi)
+        inv = ya - numpy.pi * 0.5
+        inv[inv != 0] = 1 / inv[inv != 0]
+        inv[inv == 0] = 0
+        phi = x - (ya - numpy.pi * 0.25) * inv * (xt - 0.25 * numpy.pi)
         z = (1 - 1. / 3 * (2 - 4 * ya / numpy.pi)**2) * y / ya
         return numpy.arccos(z), phi
     
