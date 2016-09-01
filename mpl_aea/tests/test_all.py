@@ -57,22 +57,21 @@ def test_moll():
 
     fig = Figure(figsize=(6, 6))
 
+    ax = fig.add_subplot(111, projection="ast.mollweide")
+
 #    ra = np.random.uniform(size=100, low=0, high=360)
 #    dec = np.random.uniform(size=100, low=-90, high=90)
-    ra = np.linspace(0, 360, 100)
-    dec = np.linspace(-90, 90, 100)
+
+    ra = np.random.uniform(size=10000, low=0, high=360)
+    dec = np.random.uniform(size=10000, low=-90, high=90)
+    ax.histmap(ra, dec, nside=2, shading='flat')
 
     ra = np.random.uniform(size=1000, low=30, high=60)
     dec = np.random.uniform(size=1000, low=-50, high=50)
 
-    ax = fig.add_subplot(111, projection="ast.mollweide")
     ax.plot(ra, dec, '*')
     ax.axhline(-20)
     ax.axvline(140)
-
-    ra = np.random.uniform(size=1000, low=60, high=90)
-    dec = np.random.uniform(size=1000, low=-50, high=50)
-    ax.histmap(ra, dec)
 
     ax.grid()
     canvas = FigureCanvasAgg(fig)
