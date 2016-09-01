@@ -142,23 +142,22 @@ def pix2quad(nside, pix, nest=False):
     #print 'here', _wrap360(_wrap360(np.array([[ -22.5  , 0. ,  22.5  , 0. ]]), 'right'), 'left')
 
     # ensure objects are in the same image plane.
+    phi, ind = _wrap(phi)
+    vertices = np.zeros((len(phi), 4, 2))
+
+    vertices[:, :, 0] = phi
+    vertices[:, :, 1] = 90.0 - theta[ind]
+
+    return vertices, pix[ind]
+
+def _wrap(phi):
+    ind = np.arange(len(phi))
     wright = _wrap360(phi, 'right')
     wleft = _wrap360(phi, 'left')
     mask = (wright != wleft).any(axis=-1)
 
-    vertices = np.zeros((len(pix) - mask.sum(), 4, 2))
-
-    vertices[:, :, 0] = wright[~mask]
-    vertices[:, :, 1] = 90.0 - theta[~mask]
-    verticesl = np.zeros((mask.sum(), 4, 2))
-    verticesr = np.zeros((mask.sum(), 4, 2))
-    verticesl[:, :, 1] = 90.0 - theta[mask]
-    verticesr[:, :, 1] = 90.0 - theta[mask]
-    verticesl[:, :, 0] = wleft[mask]
-    verticesr[:, :, 0] = wright[mask]
-
-    return np.concatenate([vertices, verticesl, verticesr], axis=0), np.concatenate([pix[~mask], pix[mask], pix[mask]], axis=0)
-
+    return (np.concatenate([phi[~mask], wright[mask], wleft[mask]], axis=0),
+            np.concatenate([ind[~mask], ind[mask], ind[mask]], axis=0))
 
 def _wrap360(phi, dir='left'):
     phi = phi.copy() # make a copy
