@@ -55,8 +55,8 @@ class HealpixTriCollection(Collection):
         Collection.__init__(self, **kwargs)
         nside = healpix.npix2nside(len(map))
         # remove the first axes
-        verts = pix2tri(nside, mask.nonzero()[0]).reshape(-1, 3, 2)
-        c = np.ones((verts.shape[0], verts.shape[1])) * np.repeat(map[mask][:, None], 2, axis=0)
+        verts, ind = pix2tri(nside, mask.nonzero()[0])
+        c = np.ones((verts.shape[0], verts.shape[1])) * map[ind][:, None]
 
         self._verts = verts
         self._shading = 'gouraud'
@@ -89,17 +89,25 @@ class HealpixTriCollection(Collection):
             return
         renderer.open_group(self.__class__.__name__)
         transform = self.get_transform()
-
         # Get a list of triangles and the color at each vertex.
         
-        verts = self._verts
+        v = self._verts
         
         self.update_scalarmappable()
         colors = self._facecolors.reshape(-1, 3, 4)
-        
-        oldshape = list(verts.shape)
-        
-        verts = transform.transform(verts.reshape(-1, 2)).reshape(oldshape)
+
+        ra0 = transform._a._a.ra0
+
+        diff = v[..., 0] - v[..., 0, 0][:, None]
+        v00 = v[..., 0, 0] - ra0
+        while (v00 > 180).any():
+            v00[v00 > 180] -= 360
+        while (v00 < -180).any():
+            v00[v00 < -180] += 360
+        v00 += ra0
+        v[..., 0] = v00[:, None] + diff
+
+        verts = transform.transform(v.reshape(-1, 2)).reshape(v.shape)
 
         gc = renderer.new_gc()
         self._set_gc_clip(gc)
@@ -189,7 +197,8 @@ def pix2tri(nside, pix, nest=False):
 
     Returns:
         vertices
-        vertices: (N,3,2,2), RA/Dec coordinates of 3 boundary points of 2 triangles
+        vertices: (N, 3,2), RA/Dec coordinates of 3 boundary points of 2 triangles
+        pix, pixel id of each vertex
     """
 
     # each pixel contains 2 triangles.
@@ -200,10 +209,25 @@ def pix2tri(nside, pix, nest=False):
     theta = np.degrees(theta)
     phi = np.degrees(phi)
 
-    vertices[:, 0, :, 0] = _wrap360(phi[:, [0, 1, 3]], 'left')
-    vertices[:, 0, :, 1] = 90.0 - theta[:, [0, 1, 3]]
-    vertices[:, 1, :, 0] = _wrap360(phi[:, [1, 2, 3]], 'right')
-    vertices[:, 1, :, 1] = 90.0 - theta[:, [1, 2, 3]]
+    phi1, ind1 = _wrap(phi[:, [0, 1, 3]])
+    phi2, ind2 = _wrap(phi[:, [1, 2, 3]])
+    theta1 = theta[:, [0, 1, 3]][ind1]
+    theta2 = theta[:, [1, 2, 3]][ind2]
+    phi = np.concatenate([phi1, phi2], axis=0)
+    ind = np.concatenate([ind1, ind2], axis=0)
+    theta = np.concatenate([theta1, theta2], axis=0)
+
+    vertices = np.zeros((len(phi), 3, 2))
+
+    vertices[:, :, 0] = phi
+    vertices[:, :, 1] = 90.0 - theta
+
+    return vertices, pix[ind]
+
+#    vertices[:, 0, :, 0] = _wrap360(phi[:, [0, 1, 3]], 'left')
+#    vertices[:, 0, :, 1] = 90.0 - theta[:, [0, 1, 3]]
+#    vertices[:, 1, :, 0] = _wrap360(phi[:, [1, 2, 3]], 'right')
+#    vertices[:, 1, :, 1] = 90.0 - theta[:, [1, 2, 3]]
 
     return vertices
 

@@ -455,6 +455,10 @@ class SkymapperAxes(Axes):
     def histcontour(self, ra, dec, weights=None, nside=32, perarea=False, mean=False, range=None, **kwargs):
         return self._histmap(self.mapcontour, ra, dec, weights, nside, perarea, mean, range, **kwargs)
 
+    def histcontourf(self, ra, dec, weights=None, nside=32, perarea=False, mean=False, range=None, **kwargs):
+        kwargs['filled'] = True
+        return self._histmap(self.mapcontour, ra, dec, weights, nside, perarea, mean, range, **kwargs)
+
     def mapshow(self, map, mask=None, nest=False, shading='flat', **kwargs):
         """ Display a healpix map """
         vmin = kwargs.pop('vmin', None)
@@ -485,7 +489,11 @@ class SkymapperAxes(Axes):
             mask = map == map
 
         ra, dec = healpix.pix2radec(healpix.npix2nside(len(map)), mask.nonzero()[0])
-        im = self.tricontour(ra, dec, map[mask], **kwargs)
+        filled = kwargs.pop('filled', False)
+        if filled:
+            im = self.tricontourf(ra, dec, map[mask], **kwargs)
+        else:
+            im = self.tricontour(ra, dec, map[mask], **kwargs)
         self._sci(im)
         self.autoscale_view(tight=True)
         return im
