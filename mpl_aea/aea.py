@@ -45,7 +45,7 @@ import matplotlib.axis as maxis
 
 import numpy as np
 from . import healpix
-from . collections import HealpixQuadCollection, HealpixTriCollection
+from . collections import HealpixQuadCollection, HealpixTriCollection, HealpixHistogram
 __author__ = "Yu Feng"
 __email__ =  "rainwoodman@gmail.com"
 class SkymapperTransform(Transform):
@@ -253,13 +253,13 @@ class SkymapperAxes(Axes):
 
         self._yaxis_text1_transform = \
             self._yaxis_stretch1 + \
-            self.transData
-#            Affine2D().translate(-8.0, 0.0)
+            self.transData + \
+            Affine2D().translate(-8.0, 0.0)
 
         self._yaxis_text2_transform = \
             self._yaxis_stretch2 + \
-            self.transData
-#            Affine2D().translate(8.0, 0.0)
+            self.transData + \
+            Affine2D().translate(8.0, 0.0)
 
     def _update_affine(self):
         # update the transformations and clip paths
@@ -486,8 +486,22 @@ class SkymapperAxes(Axes):
             mask = w > 0
         return w, mask, show(w, mask, nest=False, **kwargs)
 
-    def histmap(self, ra, dec, weights=None, nside=32, perarea=False, mean=False, range=None, **kwargs):
-        return self._histmap(self.mapshow, ra, dec, weights, nside, perarea, mean, range, **kwargs)
+    def histmap(self, ra, dec, weights=None, nside=None, perarea=False, mean=False, range=None, **kwargs):
+        vmin = kwargs.pop('vmin', None)
+        vmax = kwargs.pop('vmax', None)
+        defaults = dict(rasterized=True,
+                    alpha=1.0,
+                    linewidth=0)
+        defaults.update(kwargs)
+
+        coll = HealpixHistogram(ra, dec, weights, nside, perarea, mean, range, transform=self.transData, **defaults)
+
+        coll.set_clim(vmin=vmin, vmax=vmax)
+        self.add_collection(coll)
+        self._sci(coll)
+        self.autoscale_view(tight=True)
+
+        return coll
 
     def histcontour(self, ra, dec, weights=None, nside=32, perarea=False, mean=False, range=None, **kwargs):
         return self._histmap(self.mapcontour, ra, dec, weights, nside, perarea, mean, range, **kwargs)
@@ -511,8 +525,8 @@ class SkymapperAxes(Axes):
             coll = HealpixQuadCollection(map, mask, 
                     transform=self.transData, **defaults)
         elif shading == 'smooth':
-            coll = HealpixTriCollection(self.transProjection, map, mask, transform=self.transData, **defaults)
-        
+            coll = HealpixTriCollection(map, mask, transform=self.transData, **defaults)
+
         coll.set_clim(vmin=vmin, vmax=vmax)
         self.add_collection(coll)
         self._sci(coll)

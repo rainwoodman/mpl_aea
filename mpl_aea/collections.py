@@ -42,8 +42,7 @@ class HealpixQuadCollection(PolyCollection):
         vmax = (360, 90)
         return Bbox((vmin, vmax))
 
-
-class HealpixTriCollection(Collection):
+class BaseHealpixTriCollection(Collection):
     """
     Class for the efficient drawing of a triangular mesh using
     Gouraud shading.
@@ -51,39 +50,23 @@ class HealpixTriCollection(Collection):
     A triangular mesh is a :class:`~matplotlib.tri.Triangulation`
     object.
     """
-    def __init__(self, transProjection, map, mask, nest=False, **kwargs):
+    def __init__(self, **kwargs):
         Collection.__init__(self, **kwargs)
-        self.transProjection = transProjection
 
-        nside = healpix.npix2nside(len(map))
-        # remove the first axes
-        verts, pix, pix_c = pix2tri(nside, mask)
-        c = 0.5 * (map[pix] + map[pix_c])
-
-        self._verts = verts
-        self._shading = 'gouraud'
-        self._is_filled = True
+        verts, c = self.get_verts()
         self.set_array(c.reshape(-1))
 
-    def get_paths(self):
-        if self._paths is None:
-            self.set_paths()
-        return self._paths
+    def get_map(self):
+        return map, mask
 
-    def set_paths(self):
-        self._paths = self.convert_mesh_to_paths(self._verts)
+    def get_verts(self):
+        map, mask = self.get_map()
 
-    @staticmethod
-    def convert_mesh_to_paths(verts):
-        """
-        Converts a given mesh into a sequence of
-        :class:`matplotlib.path.Path` objects for easier rendering by
-        backends that do not directly support meshes.
+        nside = healpix.npix2nside(len(map))
 
-        This function is primarily of use to backend implementers.
-        """
-        Path = mpath.Path
-        return [Path(x) for x in verts]
+        verts, pix, pix_c = pix2tri(nside, mask)
+        c = 0.5 * (map[pix] + map[pix_c])
+        return verts, c
 
     @allow_rasterization
     def draw(self, renderer):
@@ -93,13 +76,12 @@ class HealpixTriCollection(Collection):
         transform = self.get_transform()
         # Get a list of triangles and the color at each vertex.
 
-
-        v = self.transProjection.vertices_into_view(self._verts)
-
+        verts, c = self.get_verts()
+        self.set_array(c.reshape(-1))
         self.update_scalarmappable()
         colors = self._facecolors.reshape(-1, 3, 4)
 
-
+        v = self.axes.transProjection.vertices_into_view(verts)
         verts = transform.transform(v.reshape(-1, 2)).reshape(v.shape)
 
         gc = renderer.new_gc()
@@ -119,6 +101,72 @@ class HealpixTriCollection(Collection):
         #    doing a histogram in ra, for example. 
         vmin = (0, -90)
         vmax = (360, 90)
+        return Bbox((vmin, vmax))
+
+class HealpixTriCollection(BaseHealpixTriCollection):
+    def __init__(self, map, mask, nest=False, **kwargs):
+        nside = healpix.npix2nside(len(map))
+
+        verts, pix, pix_c = pix2tri(nside, mask)
+        c = 0.5 * (map[pix] + map[pix_c])
+
+        self._verts = verts
+        self._c = c
+
+        BaseHealpixTriCollection.__init__(self, **kwargs)
+
+    def get_verts(self):
+        return self._verts, self._c
+
+class HealpixHistogram(BaseHealpixTriCollection):
+    def __init__(self, ra, dec, weights=None, nside=None, perarea=False, mean=False, range=None, **kwargs):
+        self.args = (ra, dec, weights, nside, perarea, mean, range)
+        BaseHealpixTriCollection.__init__(self, **kwargs)
+
+    def get_map(self):
+        ra, dec, weights, nside, perarea, mean, range = self.args
+        if hasattr(self, 'axes') and self.axes is not None:
+            x0, x1 = np.radians(self.axes.get_xlim())
+            y0, y1 = np.radians(self.axes.get_ylim())
+            fraction = np.abs(((np.sin(y1) - np.sin(y0)) * (x1 - x0)) / (4 * np.pi))
+            if fraction >= 0.01:
+                newnside = 2 ** (int(np.log2(healpix.npix2nside(4096. / fraction) + 1)) + 1)
+            else:
+                newnside = 8
+        else:
+            newnside = 8
+
+        if newnside != nside or not hasattr(self, '_w'):
+            self.args = ra, dec, weights, newnside, perarea, mean, range
+
+            r = healpix.histogrammap(ra, dec, weights, newnside, perarea=perarea, range=range)
+
+            if weights is not None:
+                w, N = r
+            else:
+                w = r
+            if mean:
+                mask = N != 0
+                w[mask] /= N[mask]
+            else:
+                mask = w > 0
+
+            self._w = w
+            self._mask = mask
+
+        return self._w, self._mask
+
+    def get_datalim(self, transData):
+        """ The data lim of a healpix collection.
+        """ 
+        # FIXME: it is currently set to the full sky.
+        #    This could have been trimmed down. 
+        #    We want to set xlim smartly such that the largest
+        #    empty region is chopped off. I think it is possible, by
+        #    doing a histogram in ra, for example. 
+        ra, dec, weights, nside, perarea, mean, range = self.args
+        vmin = (ra.min(), dec.min())
+        vmax = (ra.max(), dec.max())
         return Bbox((vmin, vmax))
 
 # a few helper functions talking to healpy/healpix.
@@ -228,13 +276,5 @@ def pix2tri(nside, mask, nest=False):
     vertices[:, :, 0] = phi
     vertices[:, :, 1] = 90.0 - theta
 
-    #pix = pix[ind]
     return vertices, neigh, cen
-
-#    vertices[:, 0, :, 0] = _wrap360(phi[:, [0, 1, 3]], 'left')
-#    vertices[:, 0, :, 1] = 90.0 - theta[:, [0, 1, 3]]
-#    vertices[:, 1, :, 0] = _wrap360(phi[:, [1, 2, 3]], 'right')
-#    vertices[:, 1, :, 1] = 90.0 - theta[:, [1, 2, 3]]
-
-    return vertices
 
