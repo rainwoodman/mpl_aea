@@ -173,7 +173,7 @@ def xy2ang(x, y):
     
     theta = numpy.empty(x.shape, dtype='f8')
     phi = numpy.empty(x.shape, dtype='f8')
-    
+
     def equatorial(x, y):
         return numpy.arccos(8 * y / (3 * numpy.pi)), x
     
@@ -193,9 +193,11 @@ def xy2ang(x, y):
     theta[~mask], phi[~mask] = polarcaps(x[~mask], y[~mask])
     return theta, phi
 
-def vertices(nside, pix):
+def vertices(nside, pix, step=(0.5, 0.5, 0.5, 0.5)):
     r""" Calculate the vertices for pixels 
-
+            3
+         0     2
+            1
         Returns: theta, phi
             for each (nside, pix) pair, a four-vector of theta, and
             a four-vector of phi is returned, corresponding to
@@ -209,14 +211,14 @@ def vertices(nside, pix):
     xc, yc = ang2xy(theta, phi)
     xstep = numpy.pi / (2 * nside)
     ystep = numpy.pi / (2 * nside)
-    x[..., 0] = xc - 0.5 * xstep
+    x[..., 0] = xc - step[0] * xstep
     y[..., 0] = yc
     x[..., 1] = xc
-    y[..., 1] = yc + 0.5 * ystep
-    x[..., 2] = xc + 0.5 * xstep
+    y[..., 1] = yc + step[1] * ystep
+    x[..., 2] = xc + step[2] * xstep
     y[..., 2] = yc
     x[..., 3] = xc
-    y[..., 3] = yc - 0.5 * ystep
+    y[..., 3] = yc - step[3] * ystep
 
     theta, phi = xy2ang(x, y)
     return theta, phi

@@ -48,6 +48,43 @@ from . import healpix
 from . collections import HealpixQuadCollection, HealpixTriCollection
 __author__ = "Yu Feng"
 __email__ =  "rainwoodman@gmail.com"
+class SkymapperTransform(Transform):
+    input_dims = 2
+    output_dims = 2
+    is_separable = False
+    def __init__(self, **kwargs):
+        self.dec0 = 0
+        self.ra0 = 180
+        self.dec1 = -60
+        self.dec2 = 30
+        Transform.__init__(self, **kwargs)
+        self._update()
+
+    def set_center(self, center):
+        ra0, dec0 = center
+        self.ra0  = ra0
+        self.dec0 = dec0
+        self._update()
+
+    def set_dec1(self, dec1):
+        self.dec1 = dec1
+        self._update()
+
+    def set_dec2(self, dec2):
+        self.dec2 = dec2
+        self._update()
+
+    def vertices_into_view(self, v):
+        v = v.copy()
+        diff = v[..., 0] - v[..., 0, 0][:, None]
+        v00 = v[..., 0, 0] - self.ra0
+        while (v00 > 180).any():
+            v00[v00 > 180] -= 360
+        while (v00 < -180).any():
+            v00[v00 < -180] += 360
+        v00 += self.ra0
+        v[..., 0] = v00[:, None] + diff
+        return v
 
 class SkymapperAxes(Axes):
     """
@@ -368,7 +405,7 @@ class SkymapperAxes(Axes):
         For unclear reason the very initial clip path is always applied
         to the grid. Therefore we set size to 2.0 to avoid bad clipping.
         """
-        return Polygon([(0, 0), (2, 0), (2, 2), (0, 2)], fill=False)
+        return Polygon([(0, 0), (1, 0), (1, 1), (0, 1)], fill=False)
 
     def _gen_axes_spines(self):
         d = {
@@ -459,7 +496,7 @@ class SkymapperAxes(Axes):
         kwargs['filled'] = True
         return self._histmap(self.mapcontour, ra, dec, weights, nside, perarea, mean, range, **kwargs)
 
-    def mapshow(self, map, mask=None, nest=False, shading='flat', **kwargs):
+    def mapshow(self, map, mask=None, nest=False, shading='smooth', **kwargs):
         """ Display a healpix map """
         vmin = kwargs.pop('vmin', None)
         vmax = kwargs.pop('vmax', None)
@@ -473,8 +510,8 @@ class SkymapperAxes(Axes):
         if shading == 'flat':
             coll = HealpixQuadCollection(map, mask, 
                     transform=self.transData, **defaults)
-        else:
-            coll = HealpixTriCollection(map, mask, transform=self.transData, **defaults)
+        elif shading == 'smooth':
+            coll = HealpixTriCollection(self.transProjection, map, mask, transform=self.transData, **defaults)
         
         coll.set_clim(vmin=vmin, vmax=vmax)
         self.add_collection(coll)
@@ -611,35 +648,14 @@ class AlbersEqualAreaAxes(SkymapperAxes):
         return kls.AlbersEqualAreaTransform
 
     # Now, the transforms themselves.
-    class AlbersEqualAreaTransform(Transform):
+    class AlbersEqualAreaTransform(SkymapperTransform):
         """
         The base Hammer transform.
         """
-        input_dims = 2
-        output_dims = 2
-        is_separable = False
 
         def __init__(self, **kwargs):
-            Transform.__init__(self, **kwargs)
-            self.dec0 = 0
-            self.ra0 = 180
-            self.dec1 = -60
-            self.dec2 = 30
-            self._update()
+            SkymapperTransform.__init__(self, **kwargs)
 
-        def set_center(self, center):
-            ra0, dec0 = center
-            self.ra0  = ra0
-            self.dec0 = dec0
-            self._update()
-
-        def set_dec1(self, dec1):
-            self.dec1 = dec1
-            self._update()
-
-        def set_dec2(self, dec2):
-            self.dec2 = dec2
-            self._update()
 
         def _update(self):
             self.n = 0.5 * (np.sin(np.radians(self.dec1)) 
@@ -777,5 +793,3 @@ class AlbersEqualAreaAxes(SkymapperAxes):
             return self.inverted
 
         inverted.__doc__ = Transform.inverted.__doc__
-
-

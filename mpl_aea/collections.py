@@ -51,18 +51,20 @@ class HealpixTriCollection(Collection):
     A triangular mesh is a :class:`~matplotlib.tri.Triangulation`
     object.
     """
-    def __init__(self, map, mask, nest=False, **kwargs):
+    def __init__(self, transProjection, map, mask, nest=False, **kwargs):
         Collection.__init__(self, **kwargs)
+        self.transProjection = transProjection
+
         nside = healpix.npix2nside(len(map))
         # remove the first axes
-        verts, ind = pix2tri(nside, mask.nonzero()[0])
-        c = np.ones((verts.shape[0], verts.shape[1])) * map[ind][:, None]
+        verts, pix, pix_c = pix2tri(nside, mask)
+        c = 0.5 * (map[pix] + map[pix_c])
 
         self._verts = verts
         self._shading = 'gouraud'
         self._is_filled = True
         self.set_array(c.reshape(-1))
-        
+
     def get_paths(self):
         if self._paths is None:
             self.set_paths()
@@ -90,22 +92,13 @@ class HealpixTriCollection(Collection):
         renderer.open_group(self.__class__.__name__)
         transform = self.get_transform()
         # Get a list of triangles and the color at each vertex.
-        
-        v = self._verts
-        
+
+
+        v = self.transProjection.vertices_into_view(self._verts)
+
         self.update_scalarmappable()
         colors = self._facecolors.reshape(-1, 3, 4)
 
-        ra0 = transform._a._a.ra0
-
-        diff = v[..., 0] - v[..., 0, 0][:, None]
-        v00 = v[..., 0, 0] - ra0
-        while (v00 > 180).any():
-            v00[v00 > 180] -= 360
-        while (v00 < -180).any():
-            v00[v00 < -180] += 360
-        v00 += ra0
-        v[..., 0] = v00[:, None] + diff
 
         verts = transform.transform(v.reshape(-1, 2)).reshape(v.shape)
 
@@ -187,7 +180,7 @@ def _wrap360(phi, dir='left'):
     return phi 
 
 
-def pix2tri(nside, pix, nest=False):
+def pix2tri(nside, mask, nest=False):
     """Generate healpix quad vertices for pixels where mask is True
 
     Args:
@@ -200,29 +193,43 @@ def pix2tri(nside, pix, nest=False):
         vertices: (N, 3,2), RA/Dec coordinates of 3 boundary points of 2 triangles
         pix, pixel id of each vertex
     """
-
     # each pixel contains 2 triangles.
-    pix = np.asarray(pix)
-    vertices = np.zeros((pix.size, 2, 3, 2))
+    pix = mask.nonzero()[0]
 
     theta, phi = healpix.vertices(nside, pix)
+    theta_n, phi_n = healpix.vertices(nside, pix, step=(1.0, 1.0, 1.0, 1.0))
+    pix_n = healpix.ang2pix(nside, theta_n, phi_n).reshape(theta.shape)
+
+    pix_c = np.empty_like(pix_n)
+    pix_c[...] = pix[:, None]
+
+    bad = ~mask[pix_n]
+    pix_n[bad] = pix_c[bad]
+
     theta = np.degrees(theta)
     phi = np.degrees(phi)
 
     phi1, ind1 = _wrap(phi[:, [0, 1, 3]])
     phi2, ind2 = _wrap(phi[:, [1, 2, 3]])
+    cen1 = pix_c[:, [0, 1, 3]][ind1]
+    cen2 = pix_c[:, [1, 2, 3]][ind2]
+    neigh1 = pix_n[:, [0, 1, 3]][ind1]
+    neigh2 = pix_n[:, [1, 2, 3]][ind2]
     theta1 = theta[:, [0, 1, 3]][ind1]
     theta2 = theta[:, [1, 2, 3]][ind2]
     phi = np.concatenate([phi1, phi2], axis=0)
     ind = np.concatenate([ind1, ind2], axis=0)
     theta = np.concatenate([theta1, theta2], axis=0)
+    neigh = np.concatenate([neigh1, neigh2], axis=0)
+    cen = np.concatenate([cen1, cen2], axis=0)
 
     vertices = np.zeros((len(phi), 3, 2))
 
     vertices[:, :, 0] = phi
     vertices[:, :, 1] = 90.0 - theta
 
-    return vertices, pix[ind]
+    #pix = pix[ind]
+    return vertices, neigh, cen
 
 #    vertices[:, 0, :, 0] = _wrap360(phi[:, [0, 1, 3]], 'left')
 #    vertices[:, 0, :, 1] = 90.0 - theta[:, [0, 1, 3]]
