@@ -81,7 +81,11 @@ class BaseHealpixTriCollection(Collection):
         self.update_scalarmappable()
         colors = self._facecolors.reshape(-1, 3, 4)
 
-        v = self.axes.transProjection.vertices_into_view(verts)
+        if hasattr(self.axes.transProjection, "vertices_into_view"):
+            v = self.axes.transProjection.vertices_into_view(verts)
+        else:
+            v = verts
+
         verts = transform.transform(v.reshape(-1, 2)).reshape(v.shape)
 
         gc = renderer.new_gc()

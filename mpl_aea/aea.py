@@ -60,6 +60,10 @@ class SkymapperTransform(Transform):
         Transform.__init__(self, **kwargs)
         self._update()
 
+    def _update(self):
+        # update cached variables from ra0, dec0, dec1, dec2, etc.
+        pass
+
     def set_center(self, center):
         ra0, dec0 = center
         self.ra0  = ra0
@@ -655,7 +659,7 @@ class AlbersEqualAreaAxes(SkymapperAxes):
     https://en.wikipedia.org/wiki/Albers_projection
     """
 
-    name = 'aea'
+    name = 'ast.aea'
 
     @classmethod
     def get_projection_class(kls):

@@ -6,3 +6,5 @@ from .geo import MollweideAxes
 # it.
 register_projection(AlbersEqualAreaAxes)
 register_projection(MollweideAxes)
+
+from .version import __version__

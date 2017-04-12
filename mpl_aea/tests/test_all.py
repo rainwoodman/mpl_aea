@@ -14,7 +14,7 @@ def test_aea():
 #    dec = np.random.uniform(size=100, low=-90, high=90)
     ra = np.linspace(0, 360, 100)
     dec = np.linspace(-90, 90, 100)
-    ax = fig.add_subplot(111, projection="aea")
+    ax = fig.add_subplot(111, projection="ast.aea")
     ax.set_xlim(359, 0)
     ax.set_ylim(-70, 70)
     ax.set_parallels(-20, 60)

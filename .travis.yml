@@ -1,0 +1,37 @@
+language: python
+
+python:
+    - 2.7
+    - 3.5
+
+env:
+    - NUMPY_VERSION=1.11.1
+
+before_install:
+    - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+    - chmod +x miniconda.sh
+    - ./miniconda.sh -b -p $HOME/miniconda
+    - export PATH=$HOME/miniconda/bin:$PATH
+    - conda update --yes conda
+
+install:
+    - conda create --yes -n test python=$TRAVIS_PYTHON_VERSION
+    - source activate test
+    - conda install --yes numpy=$NUMPY_VERSION matplotlib pytest coverage
+    - python setup.py install
+
+script: 
+    - pytest
+    # expecting a failure for uncollective
+    - bash check_tag.sh mpl_aea/version.py
+
+deploy:
+    - provider: pypi
+      distributions: sdist
+      server: https://pypi.python.org/pypi
+      user: "rainwoodman"
+      password:
+          secure: "vPqbCWXoJS1iit9EDzKzQQw7ZlnS2UJfFVCgk+SKOsKbrKnu/iS3yKNpU75ivNg+bRg2psqoZJXHmyTw14nQ6qgsWxpsQ9KAJtgdm8JcfmYdnjDkh7NuMiR+KPx8w99GGgFmShx5I98wLUKWMG+UyoLnajLj4RkBGTrPyF0qNscJrziivddVp0McO9ji6DhT7+hkRQdaAcU59BhvKleFpCo8JaTGp83D2fEFhVIqLmjRdde9EeKAhs7JudVEOk7uAcfpDmLJeSnTdENBC+i2NbN+3qbKucCse/mnYEkg1XTPzsA+tHftyXk8Qgiej+U2NvK9n8IaHeP0N6T9jyF/6GTgzcvpT+A8aX4b8iTxZU0v7JmoLaO8TMJ2O4idnDdgEzgy6yeU5YxibneVCIpkQCDXBR47JWBJhdyOBJYs2S1FUvF+tV9lRJn+pHMx3cOLqGBcI/ygMk1FmYIz8QaLjvdaZm+53wIQ50Jtgo5sU//qebSTawlnUjpAV6Xr2RRdtOVUQ6pIR7xGFL4Bs8ksSiAp0OZoYlV3uQ1tVR7ThbPJpf+I6sTeOVERYjnElEdZk96tZbQRYanMmj30LAtvlWYcd/bF3l9j556BnYMvsohstAlxz6drfifRlVDR4L+oJBJWXrWsJJpVce0UZhGNFO8TbusRBt52xyBoOgSSJO0="
+      on:
+        tags   : true
+        condition : ${TRAVIS_JOB_NUMBER##*.} == 1
