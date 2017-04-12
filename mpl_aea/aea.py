@@ -126,6 +126,8 @@ class SkymapperAxes(Axes):
         self.yaxis = maxis.YAxis(self)
         self.spines['left'].register_axis(self.yaxis)
         self.spines['right'].register_axis(self.yaxis)
+        self.yaxis.set_tick_params(pad=-12)
+        self.xaxis.set_tick_params(pad=-12)
         self._update_transScale()
 
     def cla(self):
@@ -234,12 +236,12 @@ class SkymapperAxes(Axes):
 
         self._xaxis_text1_transform = \
             self._xaxis_pretransform + \
-            self.transData + \
-            Affine2D().translate(0.0, -8.0)
+            self.transData# + \
+#            Affine2D().translate(0.0, -8.0)
         self._xaxis_text2_transform = \
             self._xaxis_pretransform+ \
-            self.transData + \
-            Affine2D().translate(0.0, -8.0)
+            self.transData# + \
+#            Affine2D().translate(0.0, -8.0)
 
         # Now set up the transforms for the parallel ticks.  The input to
         # these transforms are in axes space in x and display space in
@@ -257,13 +259,13 @@ class SkymapperAxes(Axes):
 
         self._yaxis_text1_transform = \
             self._yaxis_stretch1 + \
-            self.transData + \
-            Affine2D().translate(-8.0, 0.0)
+            self.transData# + \
+#            Affine2D().translate(-8.0, 0.0)
 
         self._yaxis_text2_transform = \
             self._yaxis_stretch2 + \
-            self.transData + \
-            Affine2D().translate(8.0, 0.0)
+            self.transData# + \
+#            Affine2D().translate(8.0, 0.0)
 
     def _update_affine(self):
         # update the transformations and clip paths
@@ -360,7 +362,7 @@ class SkymapperAxes(Axes):
 
         Returns a tuple of the form (transform, valign, halign)
         """
-        return self._xaxis_text1_transform, 'center', 'center'
+        return self._xaxis_text1_transform + Affine2D().translate(0.0, pixelPad), 'center', 'center'
 
     def get_xaxis_text2_transform(self, pixelPad):
         """
@@ -369,7 +371,7 @@ class SkymapperAxes(Axes):
 
         Returns a tuple of the form (transform, valign, halign)
         """
-        return self._xaxis_text2_transform, 'center', 'center'
+        return self._xaxis_text2_transform + Affine2D().translate(0.0, pixelPad), 'center', 'center'
 
     def get_yaxis_transform(self, which='grid'):
         """
@@ -386,7 +388,7 @@ class SkymapperAxes(Axes):
 
         Returns a tuple of the form (transform, valign, halign)
         """
-        return self._yaxis_text1_transform, 'center', 'center'
+        return self._yaxis_text1_transform + Affine2D().translate(pixelPad, 0.0), 'center', 'center'
 
     def get_yaxis_text2_transform(self, pixelPad):
         """
@@ -395,7 +397,7 @@ class SkymapperAxes(Axes):
 
         Returns a tuple of the form (transform, valign, halign)
         """
-        return self._yaxis_text2_transform, 'center', 'center'
+        return self._yaxis_text2_transform + Affine2D().translate(pixelPad, 0.0),  'center', 'center'
 
     def _gen_axes_patch(self):
         """
