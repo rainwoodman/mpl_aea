@@ -493,6 +493,22 @@ class SkymapperAxes(Axes):
         return w, mask, show(w, mask, nest=False, **kwargs)
 
     def histmap(self, ra, dec, weights=None, nside=None, perarea=False, mean=False, range=None, **kwargs):
+        """ Making a histogram with healpix for variables located at RA, DEC.
+
+
+            Parameters
+            ----------
+            ra, dec : angular positions
+            weights : the weight at the position
+            nside : band width of the healpix map. None for automatically decided.
+            perarea : normalized to per unit area
+            mean : use the average per pixel instead of sum per pixel.
+            range : filter ra dec to ((ra0, dec0), (ra1, dec1))
+            cmap : color map
+            vmin, vmax : min and max.
+
+
+        """
         vmin = kwargs.pop('vmin', None)
         vmax = kwargs.pop('vmax', None)
         defaults = dict(rasterized=True,
