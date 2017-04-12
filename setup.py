@@ -1,7 +1,7 @@
 from numpy.distutils.core import setup, Extension
 from numpy import get_include
 
-setup(name="mpl_aea", version="0.0.1",
+setup(name="mpl_aea", version="0.0.2",
       author="Yu Feng",
       author_email="rainwoodman@gmail.com",
       description="AEA Projection for Matplotlib derived from skywalker ",
