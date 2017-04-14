@@ -155,6 +155,8 @@ class SkymapperAxes(Axes):
         # and properlty wrap data. 
         # It doesn't make sense to have xwidth > 360. 
         self._tight = True
+        self._xmargin = 0
+        self._ymargin = 0
 
     def _set_lim_and_transforms(self):
         """

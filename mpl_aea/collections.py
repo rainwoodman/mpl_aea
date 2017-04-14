@@ -52,7 +52,6 @@ class BaseHealpixTriCollection(Collection):
     """
     def __init__(self, **kwargs):
         Collection.__init__(self, **kwargs)
-
         verts, c = self.get_verts()
         self.set_array(c.reshape(-1))
 
@@ -125,25 +124,26 @@ class HealpixTriCollection(BaseHealpixTriCollection):
 class HealpixHistogram(BaseHealpixTriCollection):
     def __init__(self, ra, dec, weights=None, nside=None, perarea=False, mean=False, range=None, **kwargs):
         self.args = (ra, dec, weights, nside, perarea, mean, range)
+        self.plot_nside = None
         BaseHealpixTriCollection.__init__(self, **kwargs)
 
     def get_map(self):
         ra, dec, weights, nside, perarea, mean, range = self.args
-        if hasattr(self, 'axes') and self.axes is not None:
-            x0, x1 = np.radians(self.axes.get_xlim())
-            y0, y1 = np.radians(self.axes.get_ylim())
-            fraction = np.abs(((np.sin(y1) - np.sin(y0)) * (x1 - x0)) / (4 * np.pi))
-            if fraction >= 0.01:
-                newnside = 2 ** (int(np.log2(healpix.npix2nside(4096. / fraction) + 1)) + 1)
+        if nside is None:
+            if hasattr(self, 'axes') and self.axes is not None:
+                x0, x1 = np.radians(self.axes.get_xlim())
+                y0, y1 = np.radians(self.axes.get_ylim())
+                fraction = np.abs(((np.sin(y1) - np.sin(y0)) * (x1 - x0)) / (4 * np.pi))
+                if fraction >= 0.01:
+                    nside = 2 ** (int(np.log2(healpix.npix2nside(4096. / fraction) + 1)) + 1)
+                else:
+                    nside = 8
             else:
-                newnside = 8
-        else:
-            newnside = 8
+                nside = 8
 
-        if newnside != nside or not hasattr(self, '_w'):
-            self.args = ra, dec, weights, newnside, perarea, mean, range
+        if self.plot_nside != nside or not hasattr(self, '_w'):
 
-            r = healpix.histogrammap(ra, dec, weights, newnside, perarea=perarea, range=range)
+            r = healpix.histogrammap(ra, dec, weights, nside, perarea=perarea, range=range)
 
             if weights is not None:
                 w, N = r
@@ -157,6 +157,7 @@ class HealpixHistogram(BaseHealpixTriCollection):
 
             self._w = w
             self._mask = mask
+            self.plot_nside = nside
 
         return self._w, self._mask
 
@@ -169,6 +170,14 @@ class HealpixHistogram(BaseHealpixTriCollection):
         #    empty region is chopped off. I think it is possible, by
         #    doing a histogram in ra, for example. 
         ra, dec, weights, nside, perarea, mean, range = self.args
+        ref = ra.min()
+        ra = ra - ref
+        while (ra > 180).any():
+            ra[ra > 180] -= 360
+        while (ra <= -180).any():
+            ra[ra <= -180] += 360
+        ra = ra + ref
+
         vmin = (ra.min(), dec.min())
         vmax = (ra.max(), dec.max())
         return Bbox((vmin, vmax))
@@ -249,31 +258,33 @@ def pix2tri(nside, mask, nest=False):
     pix = mask.nonzero()[0]
 
     theta, phi = healpix.vertices(nside, pix)
+    theta_c, phi_c = healpix.pix2ang(nside, pix)
+    theta = np.concatenate([theta, theta_c[..., None]], axis=-1)
+    phi = np.concatenate([phi, phi_c[..., None]], axis=-1)
+
     theta_n, phi_n = healpix.vertices(nside, pix, step=(1.0, 1.0, 1.0, 1.0))
-    pix_n = healpix.ang2pix(nside, theta_n, phi_n).reshape(theta.shape)
+    pix_n = healpix.ang2pix(nside, theta_n, phi_n).reshape(theta_n.shape)
 
-    pix_c = np.empty_like(pix_n)
+    other_pix = np.concatenate([pix_n, pix[..., None]], axis=-1)
+
+    pix_c = np.empty_like(other_pix)
     pix_c[...] = pix[:, None]
+    bad = ~mask[other_pix]
+    other_pix[bad] = pix_c[bad]
 
-    bad = ~mask[pix_n]
-    pix_n[bad] = pix_c[bad]
 
     theta = np.degrees(theta)
     phi = np.degrees(phi)
 
-    phi1, ind1 = _wrap(phi[:, [0, 1, 3]])
-    phi2, ind2 = _wrap(phi[:, [1, 2, 3]])
-    cen1 = pix_c[:, [0, 1, 3]][ind1]
-    cen2 = pix_c[:, [1, 2, 3]][ind2]
-    neigh1 = pix_n[:, [0, 1, 3]][ind1]
-    neigh2 = pix_n[:, [1, 2, 3]][ind2]
-    theta1 = theta[:, [0, 1, 3]][ind1]
-    theta2 = theta[:, [1, 2, 3]][ind2]
-    phi = np.concatenate([phi1, phi2], axis=0)
-    ind = np.concatenate([ind1, ind2], axis=0)
-    theta = np.concatenate([theta1, theta2], axis=0)
-    neigh = np.concatenate([neigh1, neigh2], axis=0)
-    cen = np.concatenate([cen1, cen2], axis=0)
+    r = []
+    for tri in [[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]]:
+        phi1, ind1 = _wrap(phi[:, tri])
+        cen1 = pix_c[:, tri][ind1]
+        neigh1 = other_pix[:, tri][ind1]
+        theta1 = theta[:, tri][ind1]
+        r.append((phi1, ind1, cen1, neigh1, theta1))
+
+    phi, ind, cen, neigh, theta = [np.concatenate(i , axis=0) for i in zip(*r)]
 
     vertices = np.zeros((len(phi), 3, 2))
 
