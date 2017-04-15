@@ -8,7 +8,6 @@ import matplotlib.cbook as cbook
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from matplotlib import docstring
-import matplotlib.transforms as transforms
 import matplotlib.artist as artist
 from matplotlib.artist import allow_rasterization
 import matplotlib.backend_bases as backend_bases
@@ -88,6 +87,8 @@ class BaseHealpixTriCollection(Collection):
         verts = transform.transform(v.reshape(-1, 2)).reshape(v.shape)
 
         gc = renderer.new_gc()
+        #tpath = self._clippath.get_fully_transformed_path()
+        #renderer.draw_path(gc, tpath, mtransforms.IdentityTransform(), (0, 0, 0, 1.))
         self._set_gc_clip(gc)
         gc.set_linewidth(self.get_linewidth()[0])
         renderer.draw_gouraud_triangles(gc, verts, colors, mtransforms.IdentityTransform())

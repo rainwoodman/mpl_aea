@@ -8,3 +8,9 @@ register_projection(AlbersEqualAreaAxes)
 register_projection(MollweideAxes)
 
 from .version import __version__
+
+try:
+    from matplotlib.transforms import TransformedPatchPath
+except ImportError:
+    from . import monkey
+

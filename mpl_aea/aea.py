@@ -39,7 +39,7 @@ from matplotlib.patches import Polygon
 from matplotlib.path import Path
 
 from matplotlib.ticker import NullLocator, Formatter, FixedLocator, MaxNLocator
-from matplotlib.transforms import Affine2D, BboxTransformTo, Transform, blended_transform_factory, Bbox
+from matplotlib.transforms import Affine2D, BboxTransformTo, Transform, blended_transform_factory, Bbox, IdentityTransform
 import matplotlib.spines as mspines
 import matplotlib.axis as maxis
 
@@ -137,6 +137,8 @@ class SkymapperAxes(Axes):
         # Don't forget to call the base class
         Axes.cla(self)
 
+        self.patch.set_transform(self.transClip)
+
         # Turn off minor ticking altogether
         self.xaxis.set_minor_locator(NullLocator())
         self.yaxis.set_minor_locator(NullLocator())
@@ -216,7 +218,8 @@ class SkymapperAxes(Axes):
 
         self.transClip = \
             self.transProjection + \
-            self.transAffine
+            self.transAffine + \
+            self.transAxes
 
         # The main data transformation is set up.  Now deal with
         # gridlines and tick labels.
@@ -345,8 +348,11 @@ class SkymapperAxes(Axes):
 
         # now update the clipping path
         path = Path(corners_data)
-        path0 = self.transProjection.transform_path(path)
-        path = self.transClip.transform_path(path)
+        #path0 = self.transProjection.transform_path(path)
+        #path = self.transClip.transform_path(path)
+        #print('self.patch', id(self.patch))
+        #print('vertices', path.vertices)
+        #print('self.path.transform', self.patch.get_transform())
         self.patch.set_xy(path.vertices)
 
     def get_xaxis_transform(self, which='grid'):
@@ -413,7 +419,7 @@ class SkymapperAxes(Axes):
         For unclear reason the very initial clip path is always applied
         to the grid. Therefore we set size to 2.0 to avoid bad clipping.
         """
-        return Polygon([(0, 0), (1, 0), (1, 1), (0, 1)], fill=False)
+        return Polygon([(0, 0), (0, 0), (0, 0), (0, 0)], fill=False)
 
     def _gen_axes_spines(self):
         d = {
