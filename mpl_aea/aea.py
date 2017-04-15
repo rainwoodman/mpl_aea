@@ -287,12 +287,13 @@ class SkymapperAxes(Axes):
             dec0 = self.dec0
         if self.dec1 is None:
             y0, y1 = self.viewLim.intervaly
-            dec1 = y0 + (y1 - y0) / 12.
+            dec1 = - max(abs(y0), abs(y1)) * 11. / 12
         else:
             dec1 = self.dec1
+
         if self.dec2 is None:
             y0, y1 = self.viewLim.intervaly
-            dec2 = y1 - (y1 - y0) / 12.
+            dec2 = -dec1
         else:
             dec2 = self.dec2
 
