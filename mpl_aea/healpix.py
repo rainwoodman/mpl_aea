@@ -162,6 +162,98 @@ def ang2xy(theta, phi):
     x[~mask], y[~mask] = polarcaps(z[~mask], phi[~mask])
     return x, y
 
+def dang2dxy(Nside, theta, phi, df_over_dtheta, df_over_dphi):
+    """ Convert gradients against angles to gradient against xy """
+    # We use symmetric finite diff for simplicity, less than a pixel
+    eps = numpy.pi / (4 * Nside) * 0.1
+    xy = ang2xy(theta, phi)
+    thetal = xy2ang(x - eps, y)
+    thetar = xy2ang(x + eps, y)
+    dtheta_over_dx = (thetar - thetal) / (2 * eps)
+
+    thetal = xy2ang(x, y - eps)
+    thetar = xy2ang(x, y + eps)
+    dtheta_over_dy = (thetar - thetal) / (2 * eps)
+
+    phil = xy2ang(x - eps, y)
+    phir = xy2ang(x + eps, y)
+    dphi_over_dx = (phir - phil) / (2 * eps)
+
+    phil = xy2ang(x, y - eps)
+    phir = xy2ang(x, y + eps)
+    dphi_over_dy = (phir - phil) / (2 * eps)
+
+    df_over_dx = df_over_dtheta * dtheta_over_dx \
+               + df_over_dphi * dphi_over_dx
+
+    df_over_dy = df_over_dtheta * dtheta_over_dy \
+               + df_over_dphi * dphi_over_dy
+
+    return df_over_dx, df_over_dy
+
+def plane2map(plane):
+    """ Converting a plane embedding back to a map.
+
+        This 
+    """
+    nside = plane.shape[0] // 8
+    assert plane.shape[0] == nside * 8
+    assert plane.shape[1] == nside * 4
+
+    pix = numpy.arange(nside2npix(nside))
+    theta, phi = pix2ang(nside, pix)
+    xc, yc = ang2xy(theta, phi)
+    yc = yc + 0.5 * numpy.pi
+    d = numpy.pi / (4 * nside)
+    xi, yi = numpy.int32(xc / d + 0.5), \
+             numpy.int32(yc / d + 0.5)
+    map = plane.reshape([-1] + list(plane.shape[2:]))[xi * 4 * nside + yi]
+    return map
+
+def map2plane(map, interpolate=False):
+    """ Converting a map to the plane embedding described as Fig 5
+        in Gorski et al 2005.
+
+        The resulting image has 8 Nside x 4 Nside. unused region
+        is filled with 0.0.
+
+        If interpolate is False, the embedding is exact and there
+        will be holes in the plane.
+
+        If interpolate is True, inside the region the vacant pixels
+        are filled with the mean of the four nearest neighbours. The
+        interpolated embedding is easier to work with for image
+        transformations.
+
+        Returns
+        -------
+        plane, mask :
+            plane is the plane embedding of the healpix map,
+            mask is True only if the pixel is occupied.
+            
+    """
+
+    nside = npix2nside(len(map))
+    pix = numpy.arange(len(map))
+    img = numpy.zeros((8 * nside, 4 * nside), dtype='f8')
+    mask = numpy.zeros((8 * nside, 4 * nside), dtype='?')
+    theta, phi = pix2ang(nside, pix)
+    xc, yc = ang2xy(theta, phi)
+    yc = yc + 0.5 * numpy.pi
+    d = numpy.pi / (4 * nside)
+    xi, yi = numpy.int32(xc / d + 0.5), \
+             numpy.int32(yc / d + 0.5)
+    img.ravel()[xi * 4 * nside + yi] = map
+    mask.ravel()[xi * 4 * nside + yi] = True
+
+    if interpolate:
+        from scipy.ndimage import convolve
+        kernel = [[0, 0.25, 0], [0.25, 0, 0.25], [0, 0.25, 0]]
+        img[~mask] = convolve(img, kernel, mode='constant', cval=0.0)[~mask]
+        mask = mask | (convolve(mask * 1.0, kernel, mode='constant', cval=0.0) >= 0.9)
+
+    return img, mask
+
 def xy2ang(x, y):
     r"""Convert :math:`x_s` :math:`y_s` to :math:`\theta` :math:`\phi`.
         
