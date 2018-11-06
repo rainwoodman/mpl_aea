@@ -22,6 +22,7 @@ setup(name="mpl_aea", version=find_version("mpl_aea/version.py"),
       packages = [
         'mpl_aea'
       ],
+      test_suite='mpl_aea.tests.test_all',
       install_requires=['numpy', 'matplotlib'],
 )
 
