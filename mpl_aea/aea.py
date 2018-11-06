@@ -347,14 +347,15 @@ class SkymapperAxes(Axes):
             .scale(0.95 / xscale, 0.95 / yscale)  \
             .translate(0.5, 0.5)
 
-        # now update the clipping path
-        path = Path(corners_data)
-        #path0 = self.transProjection.transform_path(path)
-        #path = self.transClip.transform_path(path)
-        #print('self.patch', id(self.patch))
-        #print('vertices', path.vertices)
-        #print('self.path.transform', self.patch.get_transform())
-        self.patch.set_xy(path.vertices)
+        if hasattr(self, 'patch'):
+            # now update the clipping path
+            path = Path(corners_data)
+            #path0 = self.transProjection.transform_path(path)
+            #path = self.transClip.transform_path(path)
+            #print('self.patch', id(self.patch))
+            #print('vertices', path.vertices)
+            #print('self.path.transform', self.patch.get_transform())
+            self.patch.set_xy(path.vertices)
 
     def get_xaxis_transform(self, which='grid'):
         """
