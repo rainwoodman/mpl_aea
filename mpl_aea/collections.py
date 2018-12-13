@@ -122,6 +122,9 @@ class HealpixTriCollection(BaseHealpixTriCollection):
     def get_verts(self):
         return self._verts, self._c
 
+    def get_paths(self):
+        return []
+
 class HealpixHistogram(BaseHealpixTriCollection):
     def __init__(self, ra, dec, weights=None, nside=None, perarea=False, mean=False, range=None, **kwargs):
         self.args = (ra, dec, weights, nside, perarea, mean, range)
