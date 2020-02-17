@@ -192,7 +192,7 @@ class GeoAxes(SkymapperAxes):
         """
         Set the number of degrees between each longitude grid.
         """
-        number = (360.0 / degrees) + 1
+        number = int(360.0 / degrees) + 1
         self.xaxis.set_major_locator(
             FixedLocator(
                 np.linspace(0, 360, number, True)[1:-1]))
@@ -203,7 +203,7 @@ class GeoAxes(SkymapperAxes):
         """
         Set the number of degrees between each longitude grid.
         """
-        number = (180.0 / degrees) + 1
+        number = int(180.0 / degrees) + 1
         self.yaxis.set_major_locator(
             FixedLocator(
                 np.linspace(-90, 90, number, True)[1:-1]))

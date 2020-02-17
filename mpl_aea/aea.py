@@ -624,7 +624,7 @@ class SkymapperAxes(Axes):
         # Set up a FixedLocator at each of the points, evenly spaced
         # by degrees.
         x0, x1 = self.get_xlim()
-        number = abs((x1 - x0) / degrees) + 1
+        number = int(abs((x1 - x0) / degrees)) + 1
         self.xaxis.set_major_locator(
             FixedLocator(
                 np.linspace(x0, x1, number, True)[1:-1]))
@@ -641,7 +641,7 @@ class SkymapperAxes(Axes):
         # Set up a FixedLocator at each of the points, evenly spaced
         # by degrees.
         y0, y1 = self.get_ylim()
-        number = ((y1 - y0) / degrees) + 1
+        number = int(((y1 - y0) / degrees)) + 1
         self.yaxis.set_major_locator(
             FixedLocator(
                 np.linspace(y0, y1, number, True)[1:-1]))
